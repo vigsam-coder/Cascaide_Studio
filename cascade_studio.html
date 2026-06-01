@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Cascade Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+
+:root{--bg-top:#0b1f3a;--bg-bottom:#020410;--accent:#38bdf8;--accent-soft:rgba(56,189,248,0.16);
+  --halo:#bfe9ff;--vac:#ff4d57;--sia:#22d3ee;--core:#ffe14d;}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{background:radial-gradient(120% 120% at 50% -10%,var(--bg-top) 0%,var(--bg-bottom) 62%);
+  color:#eaf2ff;font-family:"IBM Plex Mono",ui-monospace,monospace;overflow:hidden;transition:background .8s ease;}
+.display{font-family:"Chakra Petch",sans-serif;letter-spacing:.02em;}
+.glass{background:rgba(255,255,255,0.045);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,0.09);box-shadow:0 8px 34px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.07);}
+.label{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#7e93b8;}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+#app{display:grid;grid-template-columns:340px 1fr;grid-template-rows:60px 1fr;height:100vh;width:100vw;}
+header{grid-column:1/3;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid rgba(255,255,255,0.06);}
+#sidebar{grid-row:2;padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
+#stage{grid-row:2;position:relative;padding:14px 14px 14px 0;min-width:0;}
+.panel{border-radius:20px;padding:16px;}
+#sidebar::-webkit-scrollbar{width:7px;}#sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:20px;}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+.ptitle{font-family:"Chakra Petch";font-size:13px;font-weight:700;letter-spacing:.05em;margin-bottom:14px;}
+.block{margin-bottom:15px;}
+input[type=range]{-webkit-appearance:none;width:100%;height:5px;border-radius:9px;background:rgba(255,255,255,0.12);outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--accent);box-shadow:0 0 9px var(--accent);cursor:pointer;border:2px solid #0a1426;}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border:2px solid #0a1426;border-radius:50%;background:var(--accent);box-shadow:0 0 9px var(--accent);cursor:pointer;}
+.field{width:100%;padding:10px 12px;border-radius:13px;background:rgba(4,10,24,0.7);border:1px solid rgba(255,255,255,0.1);color:#eaf2ff;font-family:inherit;font-size:13px;}
+.field:focus{border-color:var(--accent);outline:none;}
+button{font-family:inherit;cursor:pointer;border:none;color:#eaf2ff;}
+.btn{padding:9px 12px;border-radius:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);font-size:12px;letter-spacing:.03em;transition:.18s;}
+.btn:hover{background:rgba(255,255,255,0.13);}
+.btn.active{background:var(--accent-soft);border-color:var(--accent);color:#dffaff;}
+.btn-primary{width:100%;padding:14px;border-radius:16px;font-weight:600;letter-spacing:.04em;background:linear-gradient(110deg,var(--accent),#67e8f9);color:#041326;box-shadow:0 0 20px var(--accent-soft);transition:.18s;}
+.btn-primary:hover{transform:translateY(-1px);filter:brightness(1.08);}
+.btn-primary:disabled{opacity:.55;cursor:wait;transform:none;}
+.btn-top{padding:9px 16px;border-radius:12px;background:linear-gradient(110deg,var(--accent),#67e8f9);color:#041326;font-weight:600;box-shadow:0 0 14px var(--accent-soft);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.kv{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed rgba(255,255,255,0.07);}
+.kv b{font-weight:600;color:#cfe2ff;}
+.mono{font-variant-numeric:tabular-nums;}
+#canvasWrap{position:relative;width:100%;height:100%;border-radius:26px;overflow:hidden;}
+#scene{position:absolute;inset:0;display:block;width:100%;height:100%;}
+#labels{position:absolute;inset:0;pointer-events:none;z-index:4;}
+.lab{position:absolute;font-size:10px;color:#aebfde;transform:translate(-50%,-50%);white-space:nowrap;text-shadow:0 1px 4px #000,0 0 6px #000;}
+.lab.title{font-family:"Chakra Petch";font-weight:700;font-size:12px;color:#dbe8ff;}
+.overlay{position:absolute;z-index:5;}
+.chip{padding:7px 12px;border-radius:12px;font-size:12px;display:flex;align-items:center;gap:7px;}
+.metric h3{font-family:"Chakra Petch";font-size:21px;margin:5px 0 0;font-weight:700;}
+.legend{display:flex;gap:13px;flex-wrap:wrap;font-size:11px;color:#9fb2d4;}
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+#tooltip{position:absolute;z-index:8;pointer-events:none;font-size:11px;background:rgba(4,10,24,0.92);border:1px solid var(--accent);padding:6px 9px;border-radius:9px;display:none;white-space:nowrap;}
+#camBtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+#playBtn{width:40px;height:40px;border-radius:50%;background:var(--accent);color:#041326;display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 0 16px var(--accent-soft);}
+.proj{aspect-ratio:1/1;border-radius:12px;background:rgba(3,8,20,0.72);border:1px solid rgba(255,255,255,0.08);position:relative;overflow:hidden;}
+.proj canvas{position:absolute;inset:0;width:100%;height:100%;}
+.proj .tag{position:absolute;top:5px;left:7px;font-size:9px;letter-spacing:.1em;color:#8aa0c4;z-index:2;}
+.loading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:20;background:rgba(2,4,16,0.55);backdrop-filter:blur(4px);font-size:13px;letter-spacing:.08em;color:#bcd2f5;}
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.25);border-top-color:var(--accent);border-radius:50%;margin-right:10px;animation:sp .8s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.note{font-size:11px;color:#8298bc;line-height:1.5;}
+
+
+/* ---- tab shell ---- */
+#tabbar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;gap:8px;
+  padding:0 16px;z-index:60;background:rgba(4,10,24,0.62);backdrop-filter:blur(12px);
+  border-bottom:1px solid rgba(255,255,255,0.07);}
+#tabbar .brandmark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#a5f3fc);box-shadow:0 0 14px var(--accent);}
+.tabbtn{padding:8px 17px;border-radius:11px;border:1px solid rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.05);color:#cfe0ff;font-family:"Chakra Petch",sans-serif;
+  font-size:13px;letter-spacing:.03em;cursor:pointer;transition:.16s;}
+.tabbtn:hover{background:rgba(255,255,255,0.1);}
+.tabbtn.active{background:var(--accent-soft);border-color:var(--accent);color:#eaf6ff;}
+.tabpane{position:absolute;top:48px;left:0;right:0;bottom:0;overflow:hidden;}
+/* studio fills its pane instead of the whole viewport */
+#tabSim #app{height:100%!important;width:100%!important;}
+
+</style>
+</head>
+<body>
+<div id="tabbar">
+  <div class="brandmark"></div>
+  <div class="display" style="font-weight:700;font-size:15px;margin-right:10px;">AI CASCADE STUDIO</div>
+  <button class="tabbtn active" id="btnDash" onclick="showTab('dash')">Dashboard</button>
+  <button class="tabbtn" id="btnSim" onclick="showTab('sim')">Simulation</button>
+  <div class="label" style="margin-left:auto;">atomistic dynamics &nbsp;&#8644;&nbsp; model prediction</div>
+</div>
+<div id="tabDash" class="tabpane">
+<div id="dWrap" class="glass" style="position:absolute;inset:14px;border-radius:20px;overflow:hidden;">
+  <canvas id="dScene" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+
+  <div class="overlay" style="top:16px;left:18px;">
+    <div class="display" id="dTitle" style="font-size:19px;font-weight:700;">Atomistic cascade &middot; W</div>
+    <div class="label" style="margin-top:3px;">PKA-driven Frenkel-pair dynamics &middot; reconstructed over ~20 ps</div>
+    <div style="margin-top:11px;">
+      <span class="chip glass" id="dPhaseChip"><span class="dot" style="background:#7fd4ff;"></span><span id="dPhase">Perfect crystal</span></span>
+    </div>
+  </div>
+
+  <div class="overlay" style="top:16px;right:18px;display:flex;gap:8px;">
+    <div class="chip glass"><span class="dot" style="background:#ff7a18;"></span><span id="dDisp">0</span> displaced</div>
+    <div class="chip glass"><span class="dot" style="background:#ff5252;"></span><span id="dVac">0</span> vac</div>
+    <div class="chip glass"><span class="dot" style="background:#ff35d2;"></span><span id="dSia">0</span> SIA</div>
+  </div>
+
+  <div class="overlay glass" style="left:18px;bottom:96px;border-radius:12px;padding:9px 11px 5px;width:212px;">
+    <div class="label" style="margin-bottom:5px;">Displaced atoms vs. time</div>
+    <canvas id="dChart" style="width:190px;height:54px;display:block;"></canvas>
+  </div>
+
+  <div class="overlay" style="right:18px;bottom:96px;text-align:right;">
+    <div id="dSync" class="mono" style="font-size:11px;color:#8aa0c4;">20 keV &middot; W</div>
+    <div style="margin-top:7px;display:flex;gap:6px;justify-content:flex-end;">
+      <button class="btn" id="dResync" title="Pull the current settings/prediction from the Simulation tab">&#8595; Sync from model</button>
+      <button class="btn" id="dReroll" title="New stochastic cascade at the same settings">&#8635; New</button>
+    </div>
+  </div>
+
+  <div class="overlay glass" style="left:18px;right:18px;bottom:16px;border-radius:14px;padding:10px 16px;">
+    <div style="display:flex;align-items:center;gap:13px;flex-wrap:wrap;">
+      <button id="dPlay" style="width:40px;height:40px;border-radius:50%;background:var(--accent);color:#041326;display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 0 16px var(--accent-soft);border:none;cursor:pointer;font-size:15px;">&#9654;</button>
+      <div style="flex:1;min-width:180px;">
+        <div class="row" style="margin-bottom:6px;"><span class="label">Time evolution (0 &rarr; ~20 ps)</span><span id="dPs" style="color:var(--accent);font-weight:600;">0.00 ps</span></div>
+        <input id="dTime" type="range" min="0" max="1000" step="1" value="0"/>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn active" id="dtBonds">bonds</button>
+        <button class="btn" id="dtDef">defects only</button>
+        <button class="btn active" id="dtCage">cages</button>
+        <button class="btn active" id="dtSpin">spin</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+<div id="tabSim" class="tabpane" style="display:none;">
+
+<div id="app">
+  <header class="glass" style="border-radius:0 0 16px 16px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--accent),#a5f3fc);box-shadow:0 0 16px var(--accent);"></div>
+      <div>
+        <div class="display" style="font-size:17px;font-weight:700;">AI CASCADE STUDIO</div>
+        <div class="label">Geometry-Aware Radiation Intelligence</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="chip glass" id="engineChip"><span class="dot" style="background:#fbbf24;"></span>connecting…</div>
+      <button class="btn-top" id="genOne">Generate</button>
+    </div>
+  </header>
+
+  <aside id="sidebar">
+    <div class="panel glass">
+      <div class="ptitle">GENERATION CONTROLS</div>
+
+      <div class="block">
+        <div class="row" style="margin-bottom:8px;"><span class="label">PKA Energy</span><span id="eVal" style="color:var(--accent);font-weight:600;">20.000 keV</span></div>
+        <input id="eSlider" type="range" min="0.014" max="299.782" step="0.001" value="20"/>
+        <input id="eInput" type="number" min="0.014" max="299.782" step="0.001" value="20.000" class="field" style="margin-top:9px;"/>
+      </div>
+
+      <div class="block">
+        <div class="row" style="margin-bottom:8px;"><span class="label">Temperature</span><span id="tVal" style="color:#fb923c;font-weight:600;">300 K</span></div>
+        <input id="tSlider" type="range" min="100" max="2000" step="1" value="300"/>
+      </div>
+
+      <div class="block">
+        <div class="label" style="margin-bottom:7px;">Material</div>
+        <select id="material" class="field"><option value="W">Tungsten (W)</option><option value="Fe">Iron (Fe)</option><option value="Ni">Nickel (Ni)</option></select>
+      </div>
+
+      <div class="block">
+        <div class="label" style="margin-bottom:7px;">Ensemble Samples</div>
+        <input id="ensN" type="number" value="8" min="1" max="64" class="field"/>
+      </div>
+
+      <button class="btn-primary" id="genEnsemble">⚡ Generate Cascade</button>
+    </div>
+
+    <div class="panel glass">
+      <div class="ptitle">ENSEMBLE</div>
+      <div class="row" style="align-items:center;margin-bottom:11px;">
+        <button class="btn" id="prevM">‹ Prev</button>
+        <span class="mono" style="font-size:13px;">sample <b id="mIdx">1</b> / <span id="mTot">1</span></span>
+        <button class="btn" id="nextM">Next ›</button>
+      </div>
+      <div class="kv"><span>Σ defects (mean±sd)</span><b id="esTotal" class="mono">—</b></div>
+      <div class="kv"><span>vac / sia mean</span><b id="esVS" class="mono">—</b></div>
+      <button class="btn" id="exportBtn" style="width:100%;margin-top:12px;">⬇ Export dumps (00N_vac / 00N_sia)</button>
+    </div>
+
+    <div class="panel glass">
+      <div class="ptitle">CASCADE METRICS</div>
+      <div class="kv"><span>Gyration radius R<sub>g</sub></span><b id="mRadius" class="mono">— Å</b></div>
+      <div class="note">RMS distance of all defects from their centre — one number for how big/spread-out the cascade is.</div>
+      <div class="kv" style="margin-top:9px;"><span>Bounding extent</span><b id="mExtent" class="mono">— Å</b></div>
+      <div class="note">Longest side of the smallest box enclosing every defect.</div>
+      <div class="kv" style="margin-top:9px;"><span>vac–SIA Δcentroid</span><b id="mICD" class="mono">— Å</b></div>
+      <div class="note">Gap between the mean vacancy position and the mean SIA position (core/shell separation).</div>
+      <div class="kv" style="margin-top:9px;"><span>Defect clusters</span><b id="mClusters" class="mono">—</b></div>
+      <div class="note">Connected sub-cascades: defects chained together when within ~2× the typical neighbour spacing. 1 = a single connected blob.</div>
+    </div>
+
+    <div class="panel glass">
+      <div class="ptitle">RENDER LAYERS</div>
+      <div id="layerToggles" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="ptitle">MULTI-AXIS PROJECTIONS</div>
+      <div class="grid2" style="gap:9px;">
+        <div class="proj"><span class="tag">VAC · XY</span><canvas data-proj="vac-xy"></canvas></div>
+        <div class="proj"><span class="tag">SIA · XY</span><canvas data-proj="sia-xy"></canvas></div>
+        <div class="proj"><span class="tag">VAC · XZ</span><canvas data-proj="vac-xz"></canvas></div>
+        <div class="proj"><span class="tag">SIA · XZ</span><canvas data-proj="sia-xz"></canvas></div>
+      </div>
+    </div>
+  </aside>
+
+  <main id="stage">
+    <div id="canvasWrap" class="glass">
+      <canvas id="scene"></canvas>
+      <div id="labels"></div>
+      <div id="tooltip"></div>
+      <div class="loading" id="loading"><span class="spin"></span><span id="loadMsg">Generating cascade…</span></div>
+
+      <div class="overlay" style="top:16px;left:18px;">
+        <div class="display" style="font-size:20px;font-weight:700;">Interactive Cascade Universe</div>
+        <div class="label" style="margin-top:3px;" id="sceneSub">—</div>
+        <div class="legend" style="margin-top:11px;">
+          <span><span class="dot" style="background:var(--vac);"></span>Vacancy</span>
+          <span><span class="dot" style="background:var(--sia);"></span>SIA (interstitial)</span>
+          <span><span class="dot" style="background:#fff;"></span>PKA centre</span>
+        </div>
+      </div>
+
+      <div class="overlay" style="top:16px;right:18px;display:flex;gap:8px;">
+        <div class="chip glass"><span class="dot" style="background:var(--vac);"></span><span id="vacCount">0</span> Vac</div>
+        <div class="chip glass"><span class="dot" style="background:var(--sia);"></span><span id="siaCount">0</span> SIA</div>
+      </div>
+
+      <div class="overlay" style="top:110px;right:18px;">
+        <div id="camBtns">
+        <button class="btn active" data-cam="orbit">Perspective</button>
+        <button class="btn" data-cam="top">Top</button>
+        <button class="btn" data-cam="front">Front</button>
+        <button class="btn" data-cam="side">Side</button>
+        <button class="btn" data-cam="spin">Auto-spin</button>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:7px;">
+          <button class="btn" id="moveBtn" title="Drag to reposition the cloud. Or right-drag / middle-drag / Shift-drag at any time.">✥ Move cloud</button>
+        </div>
+      </div>
+
+      <div class="overlay glass" style="left:18px;right:18px;bottom:16px;border-radius:14px;padding:10px 16px;">
+        <div style="display:flex;align-items:center;gap:13px;">
+          <button id="playBtn" title="Animate reveal">▶</button>
+          <div style="flex:1;">
+            <div class="row" style="margin-bottom:6px;"><span class="label">Cascade reveal (inside → out)</span><span id="revVal" style="color:var(--accent);font-weight:600;">100%</span></div>
+            <input id="revSlider" type="range" min="0" max="1000" step="1" value="1000"/>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+
+</div>
+<script>
+
+function showTab(tab){
+  var d=tab==='dash';
+  document.getElementById('tabDash').style.display=d?'block':'none';
+  document.getElementById('tabSim').style.display=d?'none':'block';
+  document.getElementById('btnDash').classList.toggle('active',d);
+  document.getElementById('btnSim').classList.toggle('active',!d);
+  if(d){ if(window.DASH) window.DASH.show(); }
+  else { if(window.DASH) window.DASH.pause(); window.dispatchEvent(new Event('resize')); }
+}
+
+</script>
+<script>
+(function(){
+
+"use strict";
+const TAU=Math.PI*2;
+const THEMES={
+  W:{top:"#0b1f3a",bot:"#020410",accent:"#38bdf8",halo:[0.75,0.92,1.0],hull:"#2b5b8f",skel:[0.46,0.7,1.0]},
+  Fe:{top:"#2a1405",bot:"#0b0502",accent:"#fb923c",halo:[1.0,0.85,0.62],hull:"#8a4a1c",skel:[1.0,0.66,0.32]},
+  Ni:{top:"#1e0b3a",bot:"#070213",accent:"#c084fc",halo:[0.91,0.75,1.0],hull:"#6b3a9f",skel:[0.78,0.49,1.0]}
+};
+const COL={vac:new THREE.Color(0xff4d57),sia:new THREE.Color(0x22d3ee),core:new THREE.Color(0xffe14d)};
+const MAT={W:{Ed:90,b:-0.56,c:0.12,sub:55},Fe:{Ed:40,b:-0.57,c:0.16,sub:38},Ni:{Ed:40,b:-0.55,c:0.18,sub:42}};
+const $=s=>document.querySelector(s);
+
+/* ---------- three ---------- */
+const canvas=$("#scene"),wrap=$("#canvasWrap");
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:"high-performance"});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x040a18,0.0);
+const camera=new THREE.PerspectiveCamera(50,1,0.1,100000);
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+const key=new THREE.PointLight(0xffffff,1.0,0,2);scene.add(key);
+const world=new THREE.Group();scene.add(world);
+const sphereGeo=new THREE.IcosahedronGeometry(1,1);
+
+function makeGlow(){const s=128,c=document.createElement("canvas");c.width=c.height=s;const g=c.getContext("2d");
+  const gr=g.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);gr.addColorStop(0,"rgba(255,255,255,1)");gr.addColorStop(.25,"rgba(255,255,255,.7)");gr.addColorStop(.6,"rgba(255,255,255,.18)");gr.addColorStop(1,"rgba(255,255,255,0)");
+  g.fillStyle=gr;g.fillRect(0,0,s,s);const t=new THREE.CanvasTexture(c);t.needsUpdate=true;return t;}
+const GLOW=makeGlow();
+const cloudU={uScale:{value:1},uOpacity:{value:0.62}};
+const cloudMat=new THREE.ShaderMaterial({uniforms:cloudU,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+  vertexShader:`attribute float size;attribute vec3 acolor;varying vec3 vC;uniform float uScale;
+    void main(){vC=acolor;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=size*uScale*(320./-mv.z);gl_Position=projectionMatrix*mv;}`,
+  fragmentShader:`varying vec3 vC;uniform float uOpacity;void main(){vec2 d=gl_PointCoord-vec2(.5);float r=length(d);
+    if(r>.5)discard;float a=smoothstep(.5,0.,r);a=pow(a,1.7);gl_FragColor=vec4(vC,a*uOpacity);}`});
+
+/* ---------- state ---------- */
+let ENS=null,memberIdx=0,M=null;
+const objs={};
+const layers={spheres:true,cloud:true,hulls:true,skeleton:true,halo:true,analysis:true};
+
+/* ---------- helpers ---------- */
+function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(TAU*v);}
+function vec3str(a){return `(${a[0].toFixed(1)}, ${a[1].toFixed(1)}, ${a[2].toFixed(1)})`;}
+function clearWorld(){while(world.children.length){const o=world.children.pop();
+  o.traverse&&o.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.material){(Array.isArray(c.material)?c.material:[c.material]).forEach(m=>m.dispose&&m.dispose());}});
+  world.remove(o);}}
+
+/* ---------- in-browser preview engine (fallback if backend offline) ---------- */
+function previewEnsemble(energy,temp,material,n){
+  const G=[512,512,512],members=[];const spread=1+(temp-300)/1700*0.6;
+  const P=MAT[material]||MAT.W;
+  const E_eV=energy*1000, Nnrt=0.8*E_eV/(2*P.Ed);
+  const xi=Math.min(1,Math.max(0.02,(1-P.c)*Math.pow(Math.max(Nnrt,1),P.b)+P.c));
+  const Tfac=1-Math.min(0.4,(temp-300)/1700*0.4);
+  const meanPairs=Math.max(1,Nnrt*xi*Tfac);
+  for(let mi=0;mi<n;mi++){
+    const nPairs=Math.max(0,Math.min(4000,Math.round(Math.exp(Math.log(meanPairs)+0.4*gauss()))));
+    const nClusters=Math.max(1,Math.round(1+Math.pow(energy/P.sub,0.8))),R=22*Math.pow(Math.max(energy,0.05),1/3);
+    const vac=[],sia=[];
+    for(let c=0;c<nClusters;c++){let frac=Math.floor(nPairs/nClusters)+((c<nPairs%nClusters)?1:0);if(frac<=0)continue;
+      const center=[G[0]+gauss()*0.18*R,G[1]+gauss()*0.18*R,G[2]+gauss()*0.18*R],core=[gauss()*6,gauss()*6,gauss()*6];
+      for(let i=0;i<frac;i++){
+        vac.push([center[0]+core[0]+gauss()*5*spread,center[1]+core[1]+gauss()*5*spread,center[2]+core[2]+gauss()*5*spread]);
+        let d=[gauss(),gauss(),gauss()];const nn=Math.hypot(d[0],d[1],d[2])+1e-8,rr=(8+Math.random()*12)*spread;
+        sia.push([center[0]+core[0]+d[0]/nn*rr+gauss()*2.5,center[1]+core[1]+d[1]/nn*rr+gauss()*2.5,center[2]+core[2]+d[2]/nn*rr+gauss()*2.5]);
+      }}
+    members.push({id:mi,vac,sia,stats:statsOf(vac,sia)});
+  }
+  return {format:"cascade_cloud_v1",meta:{energy_keV:energy,temperature_K:temp,material,units:"angstrom",coordinate_frame:"absolute_box",source:"local·NRT+arc-dpa"},ensemble:members,ensemble_stats:ensStats(members)};
+}
+function statsOf(vac,sia){const all=vac.concat(sia);
+  if(!all.length)return{n_vac:0,n_sia:0,n_total:0,centroid:[0,0,0],rg:0,bbox_min:[0,0,0],bbox_max:[0,0,0],extent:[0,0,0],vac_sia_centroid_dist:0};
+  const c=[0,0,0];for(const p of all){c[0]+=p[0];c[1]+=p[1];c[2]+=p[2];}c[0]/=all.length;c[1]/=all.length;c[2]/=all.length;
+  let g=0;const mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];
+  for(const p of all){g+=(p[0]-c[0])**2+(p[1]-c[1])**2+(p[2]-c[2])**2;for(let a=0;a<3;a++){mn[a]=Math.min(mn[a],p[a]);mx[a]=Math.max(mx[a],p[a]);}}
+  const mean=arr=>{const m=[0,0,0];for(const p of arr){m[0]+=p[0];m[1]+=p[1];m[2]+=p[2];}return arr.length?[m[0]/arr.length,m[1]/arr.length,m[2]/arr.length]:[0,0,0];};
+  let icd=0;if(vac.length&&sia.length){const a=mean(vac),b=mean(sia);icd=Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);}
+  return{n_vac:vac.length,n_sia:sia.length,n_total:all.length,centroid:c,rg:Math.sqrt(g/all.length),bbox_min:mn,bbox_max:mx,extent:[mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2]],vac_sia_centroid_dist:icd};}
+function ensStats(members){const tot=members.map(m=>m.stats.n_total);const mean=a=>a.reduce((x,y)=>x+y,0)/(a.length||1);const std=a=>{const m=mean(a);return Math.sqrt(mean(a.map(x=>(x-m)**2)));};
+  return{n_members:members.length,total:{mean:mean(tot),std:std(tot),min:Math.min(...tot),max:Math.max(...tot)},n_vac_mean:mean(members.map(m=>m.stats.n_vac)),n_sia_mean:mean(members.map(m=>m.stats.n_sia)),rg_mean:mean(members.map(m=>m.stats.rg))};}
+
+/* ============================================================
+   GENERATE  (backend if reachable, else preview engine)
+   ============================================================ */
+let ENGINE="connecting",busy=false;
+async function checkEngine(){
+  try{const r=await fetch("/api/health",{cache:"no-store"});if(r.ok){const j=await r.json();ENGINE=j.engine==="model"?"backend · model":"backend · demo";setEngineChip(true);return;}}catch(e){}
+  ENGINE="local · NRT+arc-dpa";setEngineChip(false);
+}
+function setEngineChip(ok){const c=$("#engineChip");c.innerHTML=`<span class="dot" style="background:${ok?"#34d399":"#fbbf24"};box-shadow:0 0 8px currentColor;"></span>${ENGINE}`;}
+
+async function generate(n){
+  if(busy)return;busy=true;
+  const e=parseFloat($("#eInput").value)||20,t=parseFloat($("#tSlider").value),mat=$("#material").value;
+  $("#genOne").disabled=true;$("#genEnsemble").disabled=true;
+  $("#loadMsg").textContent=n>1?`Generating ${n} samples…`:"Generating cascade…";$("#loading").style.display="flex";
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  let payload=null;
+  try{
+    const r=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({energy_keV:e,temperature:t,material:mat,n_samples:n})});
+    if(r.ok)payload=await r.json();
+  }catch(err){/* offline -> preview */}
+  if(!payload)payload=previewEnsemble(e,t,mat,n);
+  applyTheme(mat);
+  ENS=payload;memberIdx=0;buildMember(0);
+  $("#loading").style.display="none";$("#genOne").disabled=false;$("#genEnsemble").disabled=false;busy=false;
+}
+
+/* ============================================================
+   BUILD A MEMBER
+   ============================================================ */
+function buildMember(idx){
+  if(!ENS||!ENS.ensemble.length)return;
+  memberIdx=(idx+ENS.ensemble.length)%ENS.ensemble.length;
+  const mem=ENS.ensemble[memberIdx];
+  const theme=THEMES[(ENS.meta.material in THEMES)?ENS.meta.material:"W"];
+  const energy=ENS.meta.energy_keV||100;
+  clearWorld();
+  const vac=mem.vac.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+  const sia=mem.sia.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+  const st=mem.stats||statsOf(mem.vac,mem.sia);
+  const center=new THREE.Vector3(...st.centroid),bmin=new THREE.Vector3(...st.bbox_min),bmax=new THREE.Vector3(...st.bbox_max);
+  const extent=Math.max(1e-3,bmax.clone().sub(bmin).length()),Rch=Math.max(st.rg,extent*0.18);
+
+  const all=[];vac.forEach((p,i)=>all.push({p,type:0}));sia.forEach((p,i)=>all.push({p,type:1}));
+  all.forEach(d=>d.dist=d.p.distanceTo(center));all.sort((a,b)=>a.dist-b.dist);
+  const N=all.length,pfxVac=new Int32Array(N+1),pfxSia=new Int32Array(N+1);
+  for(let k=0;k<N;k++){pfxVac[k+1]=pfxVac[k]+(all[k].type===0?1:0);pfxSia[k+1]=pfxSia[k]+(all[k].type===1?1:0);}
+
+  const sScale=Math.max(0.3,Rch*0.025);
+  function inst(list,color,size,emi){const mat=new THREE.MeshStandardMaterial({color,emissive:new THREE.Color(color),emissiveIntensity:emi,roughness:.35,metalness:0,transparent:true,opacity:.96});
+    const m=new THREE.InstancedMesh(sphereGeo,mat,Math.max(1,list.length)),dummy=new THREE.Object3D(),pos=[];
+    list.forEach((d,k)=>{dummy.position.copy(d.p);dummy.scale.setScalar(size*(0.8+Math.random()*0.6));dummy.updateMatrix();m.setMatrixAt(k,dummy.matrix);pos.push(d.p);});
+    m.instanceMatrix.needsUpdate=true;m.count=list.length;m.userData.pos=pos;return m;}
+  objs.vac=inst(all.filter(d=>d.type===0),COL.vac,sScale,0.9);
+  objs.sia=inst(all.filter(d=>d.type===1),COL.sia,sScale,1.0);
+  world.add(objs.vac,objs.sia);
+
+  const cp=new Float32Array(N*3),cc=new Float32Array(N*3),cs=new Float32Array(N);
+  all.forEach((d,k)=>{cp[k*3]=d.p.x;cp[k*3+1]=d.p.y;cp[k*3+2]=d.p.z;const col=d.type===0?COL.vac:COL.sia;cc[k*3]=col.r;cc[k*3+1]=col.g;cc[k*3+2]=col.b;cs[k]=Rch*0.2*(0.7+Math.random()*0.6);});
+  const cg=new THREE.BufferGeometry();cg.setAttribute("position",new THREE.BufferAttribute(cp,3));cg.setAttribute("acolor",new THREE.BufferAttribute(cc,3));cg.setAttribute("size",new THREE.BufferAttribute(cs,1));
+  objs.cloud=new THREE.Points(cg,cloudMat);world.add(objs.cloud);cloudU.uScale.value=Math.max(0.4,40/Rch);
+
+  const subN=Math.min(900,N),stride=Math.max(1,Math.floor(N/subN)),sub=[];for(let k=0;k<N;k+=stride)sub.push(all[k]);
+  const cutoff=Rch*0.5,edges=[],nn=[];
+  for(let i=0;i<sub.length;i++){let b=1e18,bj=-1;for(let j=0;j<sub.length;j++){if(i===j)continue;const d2=sub[i].p.distanceToSquared(sub[j].p);if(d2<b){b=d2;bj=j;}}
+    if(bj>=0){nn.push(Math.sqrt(b));if(b<cutoff*cutoff&&i<bj)edges.push([sub[i],sub[bj],Math.max(i,bj)]);}}
+  edges.sort((a,b)=>a[2]-b[2]);
+  const ep=new Float32Array(edges.length*6),eb=new Float32Array(edges.length);
+  edges.forEach((e2,k)=>{ep[k*6]=e2[0].p.x;ep[k*6+1]=e2[0].p.y;ep[k*6+2]=e2[0].p.z;ep[k*6+3]=e2[1].p.x;ep[k*6+4]=e2[1].p.y;ep[k*6+5]=e2[1].p.z;eb[k]=e2[2]/N;});
+  const eg=new THREE.BufferGeometry();eg.setAttribute("position",new THREE.BufferAttribute(ep,3));
+  objs.skeleton=new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:new THREE.Color(...theme.skel),transparent:true,opacity:.2,blending:THREE.AdditiveBlending,depthWrite:false}));world.add(objs.skeleton);
+
+  // cluster threshold from typical neighbour spacing (median NN distance)
+  const nnSorted=[...nn].sort((a,b)=>a-b),medNN=nnSorted.length?nnSorted[nnSorted.length>>1]:Rch*0.1;
+  const clThr=Math.max(medNN*2.2,1e-3);
+  objs.hulls=new THREE.Group();const cl=clusterize(sub.map(d=>d.p),clThr);
+  let nClusters=cl.filter(g=>g.length>=3).length||1;
+  cl.slice(0,16).forEach(group=>{if(group.length<6)return;
+    const c=new THREE.Vector3();group.forEach(p=>c.add(p));c.multiplyScalar(1/group.length);
+    let sx=0,sy=0,sz=0;group.forEach(p=>{sx+=(p.x-c.x)**2;sy+=(p.y-c.y)**2;sz+=(p.z-c.z)**2;});
+    const ico=new THREE.IcosahedronGeometry(1,2);
+    const sh=new THREE.Mesh(ico,new THREE.MeshBasicMaterial({color:new THREE.Color(theme.hull),transparent:true,opacity:.07,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+    sh.position.copy(c);sh.scale.set(Math.sqrt(sx/group.length)*2.4+Rch*0.05,Math.sqrt(sy/group.length)*2.4+Rch*0.05,Math.sqrt(sz/group.length)*2.4+Rch*0.05);
+    sh.add(new THREE.Mesh(ico.clone(),new THREE.MeshBasicMaterial({color:new THREE.Color(theme.hull),wireframe:true,transparent:true,opacity:.12,depthWrite:false})));objs.hulls.add(sh);});
+  world.add(objs.hulls);
+
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color:new THREE.Color(...theme.halo),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:.6}));
+  halo.scale.setScalar(Rch*(0.6+energy/300*1.4));halo.position.copy(center);objs.halo=halo;world.add(halo);
+  const pka=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color:0xffffff,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+  pka.scale.setScalar(Rch*0.14);pka.position.copy(center);objs.pka=pka;world.add(pka);key.position.copy(center);
+
+  buildAnalysis(bmin,bmax,theme);
+
+  scene.fog.density=0.7/Math.max(extent,1)*0.5;scene.fog.color=new THREE.Color(theme.bot);
+  M={all,N,pfxVac,pfxSia,center,bmin,bmax,extent,Rch,st,edgeBirth:eb,nClusters,vacPos:objs.vac.userData.pos,siaPos:objs.sia.userData.pos,energy};
+  applyLayerVisibility();applyReveal(parseFloat($("#revSlider").value)/1000);frameCloud(true);updateReadout();drawProjections(1,true);
+  $("#mIdx").textContent=memberIdx+1;$("#mTot").textContent=ENS.ensemble.length;
+  try{window.__SIM_CURRENT={energy_keV:ENS.meta.energy_keV,material:ENS.meta.material||"W",temperature_K:ENS.meta.temperature_K,source:ENS.meta.source,vac:mem.vac,sia:mem.sia,stats:mem.stats};window.dispatchEvent(new CustomEvent("sim:member"));}catch(e){}
+}
+
+function clusterize(pts,thr){const n=pts.length,parent=[...Array(n).keys()];
+  const find=x=>{while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;};
+  const cell=thr,grid=new Map(),key=p=>`${Math.round(p.x/cell)}_${Math.round(p.y/cell)}_${Math.round(p.z/cell)}`;
+  pts.forEach((p,i)=>{const k=key(p);if(!grid.has(k))grid.set(k,[]);grid.get(k).push(i);});const t2=thr*thr;
+  pts.forEach((p,i)=>{const cx=Math.round(p.x/cell),cy=Math.round(p.y/cell),cz=Math.round(p.z/cell);
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){const arr=grid.get(`${cx+dx}_${cy+dy}_${cz+dz}`);if(!arr)continue;
+      for(const j of arr){if(j<=i)continue;if(pts[i].distanceToSquared(pts[j])<t2)parent[find(i)]=find(j);}}});
+  const groups=new Map();pts.forEach((p,i)=>{const r=find(i);if(!groups.has(r))groups.set(r,[]);groups.get(r).push(p);});
+  return [...groups.values()].sort((a,b)=>b.length-a.length);}
+
+/* ============================================================
+   ANALYSIS VIEW  (matplotlib-style labeled XYZ axis box)
+   ============================================================ */
+let analysisLabels=[];
+function niceTicks(min,max,n){const out=[];for(let i=0;i<n;i++)out.push(min+(max-min)*i/(n-1));return out;}
+function buildAnalysis(bmin,bmax,theme){
+  const grp=new THREE.Group();analysisLabels=[];
+  const skel=new THREE.Color(...theme.skel);
+  const xmin=bmin.x,ymin=bmin.y,zmin=bmin.z,xmax=bmax.x,ymax=bmax.y,zmax=bmax.z;
+  const cx=(xmin+xmax)/2,cy=(ymin+ymax)/2,cz=(zmin+zmax)/2;
+  // faint full wire box
+  grp.add(new THREE.Box3Helper(new THREE.Box3(bmin.clone(),bmax.clone()),skel));
+  grp.children[0].material.transparent=true;grp.children[0].material.opacity=0.18;
+  // back panes (floor y=ymin, walls z=zmin & x=xmin) with faint fill
+  const paneMat=()=>new THREE.MeshBasicMaterial({color:skel,transparent:true,opacity:0.05,side:THREE.DoubleSide,depthWrite:false});
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(xmax-xmin,zmax-zmin),paneMat());floor.rotation.x=-Math.PI/2;floor.position.set(cx,ymin,cz);grp.add(floor);
+  const wallZ=new THREE.Mesh(new THREE.PlaneGeometry(xmax-xmin,ymax-ymin),paneMat());wallZ.position.set(cx,cy,zmin);grp.add(wallZ);
+  const wallX=new THREE.Mesh(new THREE.PlaneGeometry(zmax-zmin,ymax-ymin),paneMat());wallX.rotation.y=Math.PI/2;wallX.position.set(xmin,cy,cz);grp.add(wallX);
+  // grid lines on the three panes
+  const seg=[];const NT=5;const xs=niceTicks(xmin,xmax,NT),ys=niceTicks(ymin,ymax,NT),zs=niceTicks(zmin,zmax,NT);
+  xs.forEach(x=>{seg.push(x,ymin,zmin,x,ymin,zmax);seg.push(x,ymin,zmin,x,ymax,zmin);});      // floor + wallZ verticals
+  zs.forEach(z=>{seg.push(xmin,ymin,z,xmax,ymin,z);seg.push(xmin,ymin,z,xmin,ymax,z);});      // floor + wallX verticals
+  ys.forEach(y=>{seg.push(xmin,y,zmin,xmax,y,zmin);seg.push(xmin,y,zmin,xmin,y,zmax);});      // wallZ + wallX horizontals
+  const gg=new THREE.BufferGeometry();gg.setAttribute("position",new THREE.BufferAttribute(new Float32Array(seg),3));
+  grp.add(new THREE.LineSegments(gg,new THREE.LineBasicMaterial({color:skel,transparent:true,opacity:0.16})));
+  // colored axis spines
+  const spine=(a,b,col)=>{const g=new THREE.BufferGeometry().setFromPoints([a,b]);grp.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:col})));};
+  spine(new THREE.Vector3(xmin,ymin,zmin),new THREE.Vector3(xmax,ymin,zmin),0xff6b6b);
+  spine(new THREE.Vector3(xmin,ymin,zmin),new THREE.Vector3(xmin,ymax,zmin),0x4ade80);
+  spine(new THREE.Vector3(xmin,ymin,zmin),new THREE.Vector3(xmin,ymin,zmax),0x60a5fa);
+  // tick labels (HTML) along the three min edges
+  xs.forEach(x=>analysisLabels.push({w:new THREE.Vector3(x,ymin,zmin),text:x.toFixed(0),cls:"lab"}));
+  ys.forEach(y=>analysisLabels.push({w:new THREE.Vector3(xmin,y,zmin),text:y.toFixed(0),cls:"lab"}));
+  zs.forEach(z=>analysisLabels.push({w:new THREE.Vector3(xmin,ymin,z),text:z.toFixed(0),cls:"lab"}));
+  // axis titles
+  analysisLabels.push({w:new THREE.Vector3(cx,ymin,zmin),text:"X (Å)",cls:"lab title",big:true});
+  analysisLabels.push({w:new THREE.Vector3(xmin,cy,zmin),text:"Y (Å)",cls:"lab title",big:true});
+  analysisLabels.push({w:new THREE.Vector3(xmin,ymin,cz),text:"Z (Å)",cls:"lab title",big:true});
+  objs.analysis=grp;world.add(grp);
+}
+
+/* ---------- reveal ---------- */
+function applyReveal(frac){if(!M)return;const k=Math.round(frac*M.N);
+  const kv=M.pfxVac[Math.min(k,M.N)],ks=M.pfxSia[Math.min(k,M.N)];
+  objs.vac.count=Math.min(objs.vac.instanceMatrix.count,kv);objs.sia.count=Math.min(objs.sia.instanceMatrix.count,ks);
+  objs.cloud.geometry.setDrawRange(0,k);
+  let ek=0;while(ek<M.edgeBirth.length&&M.edgeBirth[ek]<=frac)ek++;objs.skeleton.geometry.setDrawRange(0,ek*2);
+  $("#vacCount").textContent=kv;$("#siaCount").textContent=ks;$("#revVal").textContent=Math.round(frac*100)+"%";}
+
+/* ---------- layers ---------- */
+const LAYER_DEF=[["spheres","Defect spheres"],["cloud","Volumetric cloud"],["hulls","Cluster hulls"],["skeleton","Cascade skeleton"],["halo","PKA + energy halo"],["analysis","Analysis view (XYZ axes)"]];
+function buildLayerToggles(){const box=$("#layerToggles");box.innerHTML="";
+  LAYER_DEF.forEach(([k,label])=>{const b=document.createElement("button");b.className="btn"+(layers[k]?" active":"");b.style.display="flex";b.style.justifyContent="space-between";b.textContent=label;
+    const dot=document.createElement("span");dot.textContent="●";dot.style.color=layers[k]?"var(--accent)":"rgba(255,255,255,.25)";b.appendChild(dot);
+    b.onclick=()=>{layers[k]=!layers[k];b.classList.toggle("active",layers[k]);dot.style.color=layers[k]?"var(--accent)":"rgba(255,255,255,.25)";applyLayerVisibility();};box.appendChild(b);});}
+function applyLayerVisibility(){if(!objs.vac)return;
+  objs.vac.visible=objs.sia.visible=layers.spheres;objs.cloud.visible=layers.cloud;objs.skeleton.visible=layers.skeleton;
+  objs.halo.visible=objs.pka.visible=layers.halo;objs.hulls.visible=layers.hulls;if(objs.analysis)objs.analysis.visible=layers.analysis;}
+
+/* ---------- readout ---------- */
+function updateReadout(){if(!M)return;const s=M.st;
+  $("#mRadius").textContent=s.rg.toFixed(1)+" Å";$("#mExtent").textContent=Math.max(...s.extent).toFixed(0)+" Å";
+  $("#mICD").textContent=s.vac_sia_centroid_dist.toFixed(2)+" Å";$("#mClusters").textContent=M.nClusters;
+  const es=ENS.ensemble_stats||ensStats(ENS.ensemble);
+  $("#esTotal").textContent=`${es.total.mean.toFixed(0)} ± ${es.total.std.toFixed(0)}`;$("#esVS").textContent=`${es.n_vac_mean.toFixed(0)} / ${es.n_sia_mean.toFixed(0)}`;
+  const tt=ENS.meta.temperature_K?`${ENS.meta.temperature_K} K · `:"";
+  $("#sceneSub").textContent=`${ENS.meta.energy_keV} keV · ${tt}${ENS.meta.material||"W"} · ${ENGINE}`;}
+
+/* ---------- camera ---------- */
+const INSET_TOP=158,INSET_BOTTOM=92;
+const cam={target:new THREE.Vector3(),theta:0.7,phi:1.12,radius:120,gTarget:new THREE.Vector3(),gTheta:0.7,gPhi:1.12,gRadius:120,auto:false};
+function frameCloud(reset){if(!M)return;
+  const w=wrap.clientWidth||1,h=wrap.clientHeight||1,clear=Math.max(140,h-INSET_TOP-INSET_BOTTOM);
+  const vF=camera.fov*Math.PI/180;
+  // vertical FOV restricted to the unobstructed band, horizontal FOV from the real aspect
+  const effVF=2*Math.atan(Math.tan(vF/2)*clear/h),hF=2*Math.atan(Math.tan(vF/2)*(w/h));
+  // true bounding sphere of the defect box, fitted to whichever axis is tighter
+  const sphereR=Math.max(M.extent*0.5,M.Rch*1.4,1),dist=sphereR/Math.sin(Math.min(effVF,hF)/2)*1.15;
+  cam.gTarget.copy(M.center);cam.gRadius=dist;camera.near=Math.max(0.05,dist/500);camera.far=dist*20;camera.updateProjectionMatrix();
+  if(reset){cam.target.copy(M.center);cam.radius=dist;cam.theta=0.7;cam.gTheta=0.7;cam.phi=1.12;cam.gPhi=1.12;}}
+function setGoal(t,p){cam.gTheta=t;cam.gPhi=p;if(M)cam.gTarget.copy(M.center);}
+function updateCamera(){cam.theta+=(cam.gTheta-cam.theta)*0.1;cam.phi+=(cam.gPhi-cam.phi)*0.1;cam.radius+=(cam.gRadius-cam.radius)*0.1;cam.target.lerp(cam.gTarget,0.1);
+  if(cam.auto&&!dragging)cam.gTheta+=0.0035;cam.phi=Math.max(0.12,Math.min(Math.PI-0.12,cam.phi));
+  camera.position.set(cam.target.x+cam.radius*Math.sin(cam.phi)*Math.cos(cam.theta),cam.target.y+cam.radius*Math.cos(cam.phi),cam.target.z+cam.radius*Math.sin(cam.phi)*Math.sin(cam.theta));
+  camera.lookAt(cam.target);
+  // ---- guaranteed centring in the unobstructed band (robust to size / DPI / timing) ----
+  if(M){const w=wrap.clientWidth||1,h=wrap.clientHeight||1;camera.aspect=w/h;
+    camera.clearViewOffset();camera.updateMatrixWorld(true);camera.matrixWorldInverse.copy(camera.matrixWorld).invert();camera.updateProjectionMatrix();
+    const ndc=M.center.clone().project(camera);                     // where the cascade lands with no offset
+    const curX=(ndc.x*0.5+0.5)*w,curY=(-ndc.y*0.5+0.5)*h;           // ...in CSS pixels
+    const wantX=w/2,wantY=INSET_TOP+(h-INSET_TOP-INSET_BOTTOM)/2;    // centre of the band below/above the overlays
+    camera.setViewOffset(w,h,curX-wantX,curY-wantY,w,h);            // shift the image so cur lands exactly on want
+    camera.updateMatrixWorld(true);camera.matrixWorldInverse.copy(camera.matrixWorld).invert();camera.updateProjectionMatrix();}}
+let dragging=false,dragMode="rotate",lastX=0,lastY=0,panMode=false;
+canvas.addEventListener("contextmenu",e=>e.preventDefault());
+canvas.addEventListener("pointerdown",e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);
+  dragMode=(panMode||e.button===1||e.button===2||e.shiftKey)?"pan":"rotate";
+  canvas.style.cursor="grabbing";$("#tooltip").style.display="none";});
+canvas.addEventListener("pointermove",e=>{if(!dragging){handleHover(e);return;}
+  const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
+  if(dragMode==="pan")panCamera(dx,dy);
+  else{cam.gTheta=cam.theta-dx*0.006;cam.gPhi=cam.phi-dy*0.006;}});
+canvas.addEventListener("pointerup",()=>{dragging=false;canvas.style.cursor=panMode?"grab":"default";});
+canvas.addEventListener("pointerleave",()=>$("#tooltip").style.display="none");
+function panCamera(dx,dy){if(!M)return;camera.updateMatrixWorld();
+  const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
+  const up=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1);
+  const H=wrap.clientHeight||1,vF=camera.fov*Math.PI/180,wpp=(2*cam.radius*Math.tan(vF/2))/H;
+  const delta=new THREE.Vector3().addScaledVector(right,-dx*wpp).addScaledVector(up,dy*wpp);
+  cam.target.add(delta);cam.gTarget.add(delta);}
+canvas.addEventListener("wheel",e=>{e.preventDefault();const mn=M?M.Rch*0.3:10,mx=M?M.extent*8:4000;cam.gRadius=Math.max(mn,Math.min(mx,cam.gRadius*(1+Math.sign(e.deltaY)*0.1)));},{passive:false});
+document.querySelectorAll("[data-cam]").forEach(btn=>{btn.onclick=()=>{document.querySelectorAll("[data-cam]").forEach(b=>b.classList.remove("active"));btn.classList.add("active");
+  const m=btn.dataset.cam;cam.auto=(m==="spin");if(m==="orbit"||m==="spin")setGoal(0.7,1.12);else if(m==="top")setGoal(0.0001,0.16);else if(m==="front")setGoal(0,1.5708);else if(m==="side")setGoal(1.5708,1.5708);};});
+
+/* ---------- hover -> coordinate ---------- */
+const ray=new THREE.Raycaster(),tip=$("#tooltip");
+function handleHover(e){if(!M||dragging){tip.style.display="none";return;}
+  const r=canvas.getBoundingClientRect(),mx=((e.clientX-r.left)/r.width)*2-1,my=-((e.clientY-r.top)/r.height)*2+1;
+  ray.setFromCamera({x:mx,y:my},camera);let best=null;
+  [["Vacancy",objs.vac,M.vacPos],["SIA",objs.sia,M.siaPos]].forEach(([nm,mesh,pos])=>{
+    if(!mesh||!mesh.visible||!mesh.count)return;const hits=ray.intersectObject(mesh);
+    if(hits.length){const id=hits[0].instanceId!=null?hits[0].instanceId:0,p=pos[id]||hits[0].point;if(!best||hits[0].distance<best.d)best={d:hits[0].distance,nm,p};}});
+  if(best&&best.p){tip.style.display="block";tip.style.left=(e.clientX-r.left+13)+"px";tip.style.top=(e.clientY-r.top+13)+"px";
+    tip.innerHTML=`<b style="color:var(--accent)">${best.nm}</b><br>x ${best.p.x.toFixed(2)}<br>y ${best.p.y.toFixed(2)}<br>z ${best.p.z.toFixed(2)} <span style="color:#7e93b8">Å</span>`;}
+  else tip.style.display="none";}
+
+/* ---------- projected labels (analysis) ---------- */
+const labelLayer=$("#labels");
+function updateLabels(){if(!analysisLabels.length||!layers.analysis||!M){labelLayer.innerHTML="";return;}
+  const r=canvas.getBoundingClientRect();const cv=M.center.clone().project(camera);const ccx=(cv.x*0.5+0.5)*r.width,ccy=(-cv.y*0.5+0.5)*r.height;
+  let html="";analysisLabels.forEach(d=>{const v=d.w.clone().project(camera);if(v.z>1)return;
+    let x=(v.x*0.5+0.5)*r.width,y=(-v.y*0.5+0.5)*r.height;
+    let dx=x-ccx,dy=y-ccy,L=Math.hypot(dx,dy)||1;const off=d.big?28:14;x+=dx/L*off;y+=dy/L*off;
+    html+=`<div class="${d.cls}" style="left:${x}px;top:${y}px">${d.text}</div>`;});
+  labelLayer.innerHTML=html;}
+
+/* ---------- 2D projections ---------- */
+const projCtx={};document.querySelectorAll("[data-proj]").forEach(c=>{c.width=200;c.height=200;projCtx[c.dataset.proj]=c.getContext("2d");});
+let projTick=0;
+function drawProjections(frac,force){if(!M)return;projTick++;if(!force&&projTick%2)return;const k=Math.round(frac*M.N);
+  const cfg=[["vac-xy",0,"x","y","#ff4d57"],["sia-xy",1,"x","y","#22d3ee"],["vac-xz",0,"x","z","#ff4d57"],["sia-xz",1,"x","z","#22d3ee"]];
+  const s=M.st,W=200,pad=14,span=Math.max(s.extent[0],s.extent[1],s.extent[2],1e-3),ctr={x:(s.bbox_min[0]+s.bbox_max[0])/2,y:(s.bbox_min[1]+s.bbox_max[1])/2,z:(s.bbox_min[2]+s.bbox_max[2])/2};
+  for(const [id,type,a1,a2,color] of cfg){const ctx=projCtx[id];ctx.clearRect(0,0,W,W);ctx.globalCompositeOperation="lighter";
+    for(let kk=0;kk<k;kk++){const d=M.all[kk];if(d.type!==type)continue;const u=W/2+((d.p[a1]-ctr[a1])/span)*(W-2*pad),v=W/2-((d.p[a2]-ctr[a2])/span)*(W-2*pad);
+      ctx.fillStyle=color;ctx.globalAlpha=0.55;ctx.beginPath();ctx.arc(u,v,1.6,0,TAU);ctx.fill();}
+    ctx.globalCompositeOperation="source-over";ctx.globalAlpha=1;}}
+
+/* ---------- theme ---------- */
+function applyTheme(mat){const t=THEMES[mat]||THEMES.W,r=document.documentElement.style;
+  r.setProperty("--bg-top",t.top);r.setProperty("--bg-bottom",t.bot);r.setProperty("--accent",t.accent);r.setProperty("--accent-soft",t.accent+"28");
+  document.body.style.background=`radial-gradient(120% 120% at 50% -10%, ${t.top} 0%, ${t.bot} 62%)`;}
+
+/* ---------- export dumps ---------- */
+function dumpText(coords,lo,hi){let s="ITEM: TIMESTEP\n0\nITEM: NUMBER OF ATOMS\n"+coords.length+"\nITEM: BOX BOUNDS pp pp pp\n";
+  for(let a=0;a<3;a++)s+=`${lo[a].toFixed(4)} ${hi[a].toFixed(4)}\n`;s+="ITEM: ATOMS id type x y z\n";
+  coords.forEach((p,i)=>s+=`${i+1} 1 ${p[0].toFixed(4)} ${p[1].toFixed(4)} ${p[2].toFixed(4)}\n`);return s;}
+function sampleDumps(m){const all=m.vac.concat(m.sia);const lo=[1e9,1e9,1e9],hi=[-1e9,-1e9,-1e9];
+  (all.length?all:[[0,0,0]]).forEach(p=>{for(let a=0;a<3;a++){lo[a]=Math.min(lo[a],p[a]);hi[a]=Math.max(hi[a],p[a]);}});
+  for(let a=0;a<3;a++){lo[a]-=5;hi[a]+=5;}return{vac:dumpText(m.vac,lo,hi),sia:dumpText(m.sia,lo,hi)};}
+async function exportDumps(){if(!ENS)return;
+  const samples=ENS.ensemble.map(m=>({vac:m.vac,sia:m.sia}));
+  // try backend zip first
+  try{const r=await fetch("/api/export",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({energy_keV:ENS.meta.energy_keV,material:ENS.meta.material,samples})});
+    if(r.ok){const blob=await r.blob();return triggerDownload(blob,`cascade_${ENS.meta.energy_keV}keV_dumps.zip`);}}catch(e){}
+  // client-side zip
+  const zip=new JSZip();ENS.ensemble.forEach((m,i)=>{const d=sampleDumps(m);const id=String(i+1).padStart(3,"0");zip.file(`${id}_vac.dump`,d.vac);zip.file(`${id}_sia.dump`,d.sia);});
+  const blob=await zip.generateAsync({type:"blob"});triggerDownload(blob,`cascade_${ENS.meta.energy_keV}keV_dumps.zip`);}
+function triggerDownload(blob,name){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);}
+
+/* ---------- wiring ---------- */
+function setE(v){v=Math.max(0.014,Math.min(299.782,v));$("#eSlider").value=v;$("#eInput").value=v.toFixed(3);$("#eVal").textContent=v.toFixed(3)+" keV";}
+$("#eSlider").addEventListener("input",()=>setE(parseFloat($("#eSlider").value)));
+$("#eInput").addEventListener("input",()=>{const v=parseFloat($("#eInput").value);if(!isNaN(v))setE(v);});
+$("#tSlider").addEventListener("input",()=>$("#tVal").textContent=$("#tSlider").value+" K");
+$("#material").addEventListener("change",()=>applyTheme($("#material").value));
+$("#genOne").onclick=()=>generate(1);
+$("#genEnsemble").onclick=()=>generate(Math.max(1,Math.min(64,parseInt($("#ensN").value)||8)));
+$("#prevM").onclick=()=>buildMember(memberIdx-1);
+$("#nextM").onclick=()=>buildMember(memberIdx+1);
+$("#exportBtn").onclick=exportDumps;
+$("#moveBtn").onclick=()=>{panMode=!panMode;$("#moveBtn").classList.toggle("active",panMode);canvas.style.cursor=panMode?"grab":"default";};
+let playing=false;
+$("#revSlider").addEventListener("input",()=>{playing=false;$("#playBtn").textContent="▶";const f=parseFloat($("#revSlider").value)/1000;applyReveal(f);drawProjections(f,true);});
+$("#playBtn").onclick=()=>{playing=!playing;$("#playBtn").textContent=playing?"❚❚":"▶";if(playing&&parseFloat($("#revSlider").value)>=1000)$("#revSlider").value=0;};
+
+function resize(){const w=wrap.clientWidth,h=wrap.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();if(M)frameCloud(false);}
+new ResizeObserver(resize).observe(wrap);
+function loop(){requestAnimationFrame(loop);
+  if(playing){let v=parseFloat($("#revSlider").value)+5;if(v>=1000){v=1000;playing=false;$("#playBtn").textContent="▶";}$("#revSlider").value=v;applyReveal(v/1000);}
+  const frac=parseFloat($("#revSlider").value)/1000;updateCamera();updateLabels();drawProjections(frac);renderer.render(scene,camera);}
+
+/* ---------- init ---------- */
+buildLayerToggles();applyTheme("W");setE(20);resize();loop();
+checkEngine().then(()=>generate(1));
+
+})();
+</script>
+<script>
+window.DASH=(function(){
+"use strict";
+const T=THREE, TAU=Math.PI*2;
+const cvs=document.getElementById('dScene'), wrap=document.getElementById('dWrap');
+const renderer=new T.WebGLRenderer({canvas:cvs,antialias:true,alpha:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new T.Scene();
+const camera=new T.PerspectiveCamera(42,1,0.1,4000);
+scene.add(new T.AmbientLight(0x4a6e72,0.85));
+const key=new T.DirectionalLight(0xffffff,1.05);key.position.set(6,9,7);scene.add(key);
+const rim=new T.DirectionalLight(0x39b4c8,0.7);rim.position.set(-7,-3,-6);scene.add(rim);
+const fill=new T.PointLight(0x7fe9ff,0.45,90);fill.position.set(0,4,12);scene.add(fill);
+
+const MATCOL={W:{atom:0x1fb6b2},Fe:{atom:0xd98a4a},Ni:{atom:0xb08ad9}};
+
+/* ---- BCC lattice (built once) ---- */
+const N=7, A=2.15, off=N*A/2;
+const atoms=[];
+function addA(x,y,z){atoms.push({home:new T.Vector3(x*A-off,y*A-off,z*A-off),kind:0,s:0,peak:null,end:0});}
+for(let i=0;i<=N;i++)for(let j=0;j<=N;j++)for(let k=0;k<=N;k++)addA(i,j,k);
+for(let i=0;i<N;i++)for(let j=0;j<N;j++)for(let k=0;k<N;k++)addA(i+0.5,j+0.5,k+0.5);
+const NA=atoms.length;
+const sphereGeo=new T.SphereGeometry(0.62,18,18);
+const sphMat=new T.MeshPhongMaterial({shininess:70,specular:0x224044,vertexColors:true});
+const mesh=new T.InstancedMesh(sphereGeo,sphMat,NA);
+mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
+mesh.instanceColor=new T.InstancedBufferAttribute(new Float32Array(NA*3),3);
+scene.add(mesh);
+
+let bondLines=null;
+(function buildBonds(){const pts=[], bond=A*0.5*Math.sqrt(3)+0.05;
+  for(let a=0;a<NA;a++)for(let b=a+1;b<NA;b++){if(atoms[a].home.distanceTo(atoms[b].home)<bond){
+    pts.push(atoms[a].home.x,atoms[a].home.y,atoms[a].home.z,atoms[b].home.x,atoms[b].home.y,atoms[b].home.z);}}
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pts,3));
+  bondLines=new T.LineSegments(g,new T.LineBasicMaterial({color:0x2a6f72,transparent:true,opacity:0.30}));scene.add(bondLines);})();
+
+const boxEdges=new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(N*A,N*A,N*A)),
+  new T.LineDashedMaterial({color:0x9fb4d8,dashSize:0.6,gapSize:0.35,transparent:true,opacity:.32}));
+boxEdges.computeLineDistances();scene.add(boxEdges);
+
+const cageGeo=new T.EdgesGeometry(new T.BoxGeometry(0.95,0.95,0.95));
+let cages=[];
+const irr=new T.Group();scene.add(irr);
+const pkaG=new T.Group();scene.add(pkaG);
+
+// separate mesh for interstitials placed at the model's real (off-lattice) coordinates
+const siaGeo=new T.SphereGeometry(1,16,16);
+let siaMesh=null, sN=0, sPos=null, sEm=null;
+
+const ATEAL=new T.Color(0x1fb6b2), HOT=new T.Color(0xff7a18), HOTR=new T.Color(0xff2d2d);
+let TRANS=[], VACA=[], dispCurve=[], pkaIndex=0, curMat='W', curE=20, curSource='\u2014';
+
+const sm=t=>t*t*(3-2*t);
+const rnd=(a,b)=>a+Math.random()*(b-a);
+function subsample(arr,k){if(arr.length<=k)return arr.slice();const out=[],step=arr.length/k;for(let i=0;i<k;i++)out.push(arr[Math.floor(i*step)]);return out;}
+
+function buildIrr(pkaPos,DIR,L){
+  const start=pkaPos.clone().sub(DIR.clone().multiplyScalar(N*A*0.9)).add(new T.Vector3(-1.2,0.3,0.2));
+  const wig=[],segs=44;
+  for(let s=0;s<=segs;s++){const f=s/segs;const p=start.clone().lerp(pkaPos,f);
+    const perp=new T.Vector3(0,1,0).cross(DIR).normalize();p.add(perp.multiplyScalar(Math.sin(f*Math.PI*7)*0.5*(1-f)));wig.push(p);}
+  irr.add(new T.Line(new T.BufferGeometry().setFromPoints(wig),new T.LineBasicMaterial({color:0xff6a1a})));
+  const cone=new T.Mesh(new T.ConeGeometry(0.45,1.3,16),new T.MeshBasicMaterial({color:0xff6a1a}));
+  cone.position.copy(pkaPos.clone().sub(DIR.clone().multiplyScalar(0.9)));
+  cone.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),DIR);irr.add(cone);
+  pkaG.add(new T.ArrowHelper(DIR,pkaPos,L*0.85,0xe8d800,1.0,0.55));
+}
+
+/* ---- build cascade FROM the model cloud (lattice aesthetic preserved) ---- */
+function generateCascade(data){
+  curMat=(data&&data.material)||'W';
+  curE=(data&&data.energy_keV!=null)?data.energy_keV:20;
+  curSource=(data&&data.source==='model')?'model':((data&&data.source)||'preview');
+  ATEAL.setHex((MATCOL[curMat]||MATCOL.W).atom);
+
+  for(const at of atoms){at.kind=0;at.s=0;at.peak=null;at.end=0;}
+  cages.forEach(c=>scene.remove(c));cages=[];irr.clear();pkaG.clear();TRANS=[];VACA=[];
+  if(siaMesh){scene.remove(siaMesh);siaMesh.geometry.dispose();siaMesh.material.dispose();siaMesh=null;}
+
+  const vacR=((data&&data.vac)||[]).map(p=>new T.Vector3(p[0],p[1],p[2]));
+  const siaR=((data&&data.sia)||[]).map(p=>new T.Vector3(p[0],p[1],p[2]));
+  const allR=vacR.concat(siaR);
+
+  // fixed display geometry (same diagonal sweep as the original) + model-derived PKA
+  const DIR=new T.Vector3(1,0.42,0.55).normalize();
+  const cornerT=new T.Vector3(-off+A*1.0,-off+A*1.1,-off+A*1.3);
+  let best=1e9;pkaIndex=0;atoms.forEach((at,i)=>{const d=at.home.distanceTo(cornerT);if(d<best){best=d;pkaIndex=i;}});
+  const pkaPos=atoms[pkaIndex].home.clone();
+  const Lc=N*A*0.5, cloudCenter=pkaPos.clone().add(DIR.clone().multiplyScalar(Lc));
+
+  // orient the model cloud's principal axis (vac->sia) along DIR, scale to fit the box
+  const cCen=new T.Vector3();allR.forEach(p=>cCen.add(p));if(allR.length)cCen.multiplyScalar(1/allR.length);
+  const vMean=new T.Vector3();vacR.forEach(p=>vMean.add(p));if(vacR.length)vMean.multiplyScalar(1/vacR.length);
+  const sMean=new T.Vector3();siaR.forEach(p=>sMean.add(p));if(siaR.length)sMean.multiplyScalar(1/siaR.length);
+  let pdir=sMean.clone().sub(vMean);if(pdir.length()<1e-3)pdir.copy(DIR);pdir.normalize();
+  const quat=new T.Quaternion().setFromUnitVectors(pdir,DIR);
+  let Rcloud=1e-3;allR.forEach(p=>{Rcloud=Math.max(Rcloud,p.clone().sub(cCen).length());});
+  const s=(N*A*0.30)/Rcloud;
+  const tf=p=>cloudCenter.clone().add(p.clone().sub(cCen).applyQuaternion(quat).multiplyScalar(s));
+
+  // cap for legibility in a finite lattice (keeps the spatial pattern)
+  const MAXD=170;let vac=vacR,sia=siaR,capped=false;
+  if(vac.length>MAXD){vac=subsample(vac,MAXD);capped=true;}
+  if(sia.length>MAXD){sia=subsample(sia,MAXD);capped=true;}
+
+  // vacancies -> nearest free lattice site (a vacancy is a missing lattice atom)
+  const used=new Set([pkaIndex]);
+  vac.forEach(p=>{const q=tf(p);let bi=-1,bd=1e9;
+    for(let i=0;i<NA;i++){if(used.has(i))continue;const d=atoms[i].home.distanceToSquared(q);if(d<bd){bd=d;bi=i;}}
+    if(bi<0)return;used.add(bi);const at=atoms[bi];at.kind=3;at.s=0.01+Math.random()*0.04;
+    at.peak=at.home.clone().add(new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize().multiplyScalar(rnd(0.3,0.8)));
+    const cage=new T.LineSegments(cageGeo,new T.LineBasicMaterial({color:0xff5252,transparent:true,opacity:0}));
+    cage.position.copy(at.home);cage._spawn=0.34;cage._full=0.46;scene.add(cage);cages.push(cage);VACA.push(bi);});
+
+  // interstitials -> exact transformed model coords (off-lattice), settle inside->out
+  const sPositions=sia.map(tf);
+  sN=sPositions.length;sPos=new Float32Array(Math.max(1,sN)*3);sEm=new Float32Array(Math.max(1,sN));
+  const ord=sPositions.map((p,i)=>({i,d:p.distanceTo(cloudCenter)})).sort((a,b)=>a.d-b.d);
+  ord.forEach((o,k)=>{const p=sPositions[o.i];sPos[o.i*3]=p.x;sPos[o.i*3+1]=p.y;sPos[o.i*3+2]=p.z;
+    sEm[o.i]=0.42+0.20*(sN>1?k/(sN-1):0)+rnd(-0.01,0.01);});
+  siaMesh=new T.InstancedMesh(siaGeo,new T.MeshPhongMaterial({color:0xff35d2,emissive:0x4a0f3e,shininess:60}),Math.max(1,sN));
+  siaMesh.count=sN;siaMesh.userData={center:cloudCenter.clone(),r:Math.max(0.45,A*0.30)};scene.add(siaMesh);
+
+  // synthetic spike body (transients) from PKA along DIR -- recombine away
+  const L=Math.min(N*A*0.95,Lc+N*A*0.30),Rmax=N*A*0.28;
+  const envR=u=>Rmax*Math.pow(Math.sin(Math.PI*Math.min(Math.max(u/L,0),1)),0.55);
+  atoms.forEach((at,i)=>{if(at.kind!==0||i===pkaIndex)return;const rel=at.home.clone().sub(pkaPos);const u=rel.dot(DIR);
+    if(u<0||u>L)return;const perp=rel.clone().sub(DIR.clone().multiplyScalar(u)).length();const r=envR(u);if(r<0.3)return;if(perp>r*1.05)return;
+    if(Math.random()>0.5)return;
+    at.kind=1;at.s=0.005+(u/L)*0.10+Math.random()*0.02;at.end=rnd(0.34,0.60);
+    at.peak=at.home.clone().add(new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize().multiplyScalar(rnd(0.4,1.1)));TRANS.push(i);});
+
+  buildIrr(pkaPos,DIR,L);
+  dispCurve=[];for(let q=0;q<=120;q++)dispCurve.push(countDisp(q/120));
+  document.getElementById('dTitle').textContent='Atomistic cascade \u00b7 '+curMat;
+  document.getElementById('dSync').textContent=
+    (curE<1?(+curE).toFixed(3):(+curE).toFixed(1))+' keV \u00b7 '+curMat+' \u00b7 '+VACA.length+'V/'+sN+'I'+(capped?' (subset)':'')+' \u00b7 '+curSource;
+  setT(evoT);
+}
+
+/* ---- kinematics ---- */
+function heat(t){if(t<0.12)return sm(Math.min(1,t/0.12))*0.85;if(t<0.28)return 0.85+0.15*Math.sin(((t-0.12)/0.16)*Math.PI);if(t<0.62)return Math.max(0,1-(t-0.28)/0.34);return 0;}
+function emScale(t,te){const f=(t-te)/0.05;if(f<=0)return 0;return Math.min(1,sm(Math.min(f,1)));}
+function transState(at,t){ // kind1
+  if(t<at.s)return{pos:at.home,hot:0};
+  const rE=at.s+0.06;
+  if(t<=rE){const f=sm((t-at.s)/0.06);return{pos:at.home.clone().lerp(at.peak,f),hot:f};}
+  if(t<at.end){const g=sm((t-rE)/(at.end-rE));return{pos:at.peak.clone().lerp(at.home,g),hot:1-g};}
+  return{pos:at.home,hot:0};
+}
+function vacState(at,t){ // kind3: hot, then vanishes as the cage forms
+  if(t<at.s)return{pos:at.home,hot:0,scale:1};
+  const h=Math.min(1,(t-at.s)/0.06)*(t<0.5?1:0);
+  const vanish=sm(Math.max(0,Math.min(1,(t-0.38)/0.08)));
+  return{pos:at.home.clone().lerp(at.peak,h*0.6),hot:h*(1-vanish*0.4),scale:1-vanish};
+}
+function countDisp(t){let n=0;
+  for(const i of TRANS){if(transState(atoms[i],t).hot>0.18)n++;}
+  for(const i of VACA){const v=vacState(atoms[i],t);if(v.hot>0.18&&v.scale>0.05)n++;}
+  for(let k=0;k<sN;k++){const e=emScale(t,sEm[k]);if(e>0.02&&e<0.98)n++;}
+  return n;}
+
+/* ---- per-frame ---- */
+const dummy=new T.Object3D(), tmpC=new T.Color();
+let showBonds=true, defectsOnly=false, showCages=true;
+function updateFrame(t){
+  let nDisp=0,nVac=0,nSia=0;
+  for(let i=0;i<NA;i++){
+    const at=atoms[i];let scale=1,hide=false;
+    if(i===pkaIndex){tmpC.copy(HOT);scale=1.1;}
+    else if(at.kind===3){const v=vacState(at,t);tmpC.copy(HOT).lerp(HOTR,Math.min(v.hot,1));
+      scale=(1+v.hot*0.18)*v.scale;if(v.hot>0.18&&v.scale>0.05)nDisp++;if(v.scale<0.05)hide=true;
+      dummy.position.copy(v.pos);}
+    else if(at.kind===1){const st=transState(at,t);
+      if(st.hot>0.02){tmpC.copy(HOT).lerp(HOTR,Math.min(st.hot,1));scale=1+st.hot*0.18;if(st.hot>0.18)nDisp++;}
+      else{tmpC.copy(ATEAL);if(defectsOnly)hide=true;}
+      dummy.position.copy(st.pos);}
+    else{tmpC.copy(ATEAL);if(defectsOnly)hide=true;dummy.position.copy(at.home);}
+    if(at.kind===0||at.kind===1&&transState(at,t).hot<=0.02){if(at.kind!==1)dummy.position.copy(at.home);}
+    dummy.scale.setScalar(hide?0.0001:scale);dummy.updateMatrix();
+    mesh.setMatrixAt(i,dummy.matrix);mesh.setColorAt(i,tmpC);
+  }
+  mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+
+  if(siaMesh){const r=siaMesh.userData.r,c=siaMesh.userData.center;
+    for(let k=0;k<sN;k++){const e=emScale(t,sEm[k]);if(e>0.5)nSia++;
+      const fx=sPos[k*3],fy=sPos[k*3+1],fz=sPos[k*3+2];
+      dummy.position.set(c.x+(fx-c.x)*e,c.y+(fy-c.y)*e,c.z+(fz-c.z)*e);
+      dummy.scale.setScalar(r*e+1e-4);dummy.updateMatrix();siaMesh.setMatrixAt(k,dummy.matrix);}
+    siaMesh.instanceMatrix.needsUpdate=true;}
+
+  for(const c of cages){let o=0;if(showCages&&t>c._spawn)o=Math.min((t-c._spawn)/(c._full-c._spawn),1)*0.9;
+    c.material.opacity=o;c.visible=o>0.01;}
+  for(const i of VACA){if(t>0.44)nVac++;}
+  bondLines.visible=showBonds&&!defectsOnly;
+
+  document.getElementById('dDisp').textContent=nDisp;
+  document.getElementById('dVac').textContent=nVac;
+  document.getElementById('dSia').textContent=nSia;
+  const pn=document.getElementById('dPhase'),pc=document.getElementById('dPhaseChip');
+  let label,col;
+  if(t<0.005){label='Perfect crystal';col='#7fd4ff';}
+  else if(t<0.12){label='Ballistic (collisional)';col='#fb923c';}
+  else if(t<0.25){label='Thermal spike \u00b7 peak';col='#ff4d57';}
+  else if(t<0.6){label='Recombination';col='#fbbf24';}
+  else{label='Surviving Frenkel defects';col='#22d3ee';}
+  if(pn)pn.textContent=label;if(pc&&pc.firstChild)pc.firstChild.style.background=col;
+  drawChart(t);
+}
+
+/* ---- chart ---- */
+const dch=document.getElementById('dChart');dch.width=190;dch.height=54;const cctx=dch.getContext('2d');
+function drawChart(t){const W=190,H=54;cctx.clearRect(0,0,W,H);if(!dispCurve.length)return;
+  const mx=Math.max.apply(null,dispCurve)||1;
+  cctx.beginPath();cctx.moveTo(0,H);dispCurve.forEach((v,s)=>cctx.lineTo(s/120*W,H-(v/mx)*(H-6)));cctx.lineTo(W,H);cctx.closePath();
+  const gr=cctx.createLinearGradient(0,0,0,H);gr.addColorStop(0,'rgba(255,80,40,.5)');gr.addColorStop(1,'rgba(255,120,24,0)');cctx.fillStyle=gr;cctx.fill();
+  cctx.beginPath();dispCurve.forEach((v,s)=>{const x=s/120*W,y=H-(v/mx)*(H-6);s?cctx.lineTo(x,y):cctx.moveTo(x,y);});cctx.strokeStyle='#ff7a18';cctx.lineWidth=1.5;cctx.stroke();
+  const xm=t*W,idx=Math.min(Math.round(t*120),120),ym=H-(dispCurve[idx]/mx)*(H-6);
+  cctx.strokeStyle='rgba(120,200,255,.55)';cctx.beginPath();cctx.moveTo(xm,0);cctx.lineTo(xm,H);cctx.stroke();
+  cctx.fillStyle='#7fd4ff';cctx.beginPath();cctx.arc(xm,ym,2.8,0,TAU);cctx.fill();}
+
+/* ---- camera / orbit ---- */
+let theta=0.7,phi=1.12,radius=N*A*2.05,autoSpin=true;const tgt=new T.Vector3(0,0,0);
+function setCam(){camera.position.set(tgt.x+radius*Math.sin(phi)*Math.cos(theta),tgt.y+radius*Math.cos(phi),tgt.z+radius*Math.sin(phi)*Math.sin(theta));camera.lookAt(tgt);}
+let drag=false,px=0,py=0;
+cvs.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;py=e.clientY;cvs.setPointerCapture(e.pointerId);});
+cvs.addEventListener('pointerup',()=>drag=false);
+cvs.addEventListener('pointermove',e=>{if(!drag)return;autoSpin=false;const b=document.getElementById('dtSpin');if(b)b.classList.remove('active');
+  theta-=(e.clientX-px)*0.008;phi=Math.max(0.25,Math.min(Math.PI-0.25,phi-(e.clientY-py)*0.008));px=e.clientX;py=e.clientY;});
+cvs.addEventListener('wheel',e=>{e.preventDefault();radius=Math.max(N*A*0.9,Math.min(N*A*4,radius+e.deltaY*0.03));},{passive:false});
+
+/* ---- playback ---- */
+let evoT=0,playing=false,speed=80,last=performance.now(),active=false,started=false;
+const slider=document.getElementById('dTime'),playBtn=document.getElementById('dPlay');
+function setT(v){evoT=v;slider.value=Math.round(v*1000);
+  slider.style.background='linear-gradient(90deg,var(--accent) 0%,var(--accent) '+(v*100)+'%,rgba(255,255,255,.12) '+(v*100)+'%)';
+  document.getElementById('dPs').textContent=(22*(1-Math.cos(v*Math.PI/2))).toFixed(2)+' ps';updateFrame(v);}
+playBtn.onclick=()=>{if(evoT>=0.999)setT(0);playing=!playing;playBtn.textContent=playing?'\u275A\u275A':'\u25B6';};
+slider.oninput=()=>{playing=false;playBtn.textContent='\u25B6';setT(slider.value/1000);};
+
+function chip(id,fn){const el=document.getElementById(id);if(!el)return;el.onclick=()=>{el.classList.toggle('active');fn(el.classList.contains('active'));};}
+chip('dtBonds',v=>showBonds=v);
+chip('dtDef',v=>defectsOnly=v);
+chip('dtCage',v=>showCages=v);
+chip('dtSpin',v=>autoSpin=v);
+const reB=document.getElementById('dReroll');if(reB)reB.onclick=()=>{if(window.__SIM_CURRENT){generateCascade(window.__SIM_CURRENT);playing=false;playBtn.textContent='\u25B6';}};
+const syB=document.getElementById('dResync');if(syB)syB.onclick=()=>{lastSig='';doSync(true);};
+
+/* ---- live link to the Simulation tab ---- */
+let lastSig='';
+function doSync(force){const d=window.__SIM_CURRENT;if(!d)return;
+  const sig=(d.energy_keV)+'|'+(d.material)+'|'+((d.vac||[]).length)+'|'+((d.sia||[]).length)+'|'+(d.stats&&d.stats.rg);
+  if(force||sig!==lastSig){lastSig=sig;generateCascade(d);playing=false;playBtn.textContent='\u25B6';}}
+window.addEventListener('sim:member',()=>{doSync(true);});
+
+function resize(){const w=wrap.clientWidth,h=wrap.clientHeight;if(w<2||h<2)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(wrap);
+
+function loop(now){requestAnimationFrame(loop);if(!active)return;
+  const dt=(now-last)/1000;last=now;
+  if(playing){evoT+=dt*(speed/1000);if(evoT>=1){evoT=1;playing=false;playBtn.textContent='\u25B6';}setT(evoT);}
+  if(autoSpin&&!drag)theta+=dt*0.12;
+  setCam();renderer.render(scene,camera);}
+
+// initial (replaced as soon as the Simulation tab publishes a cloud)
+generateCascade({energy_keV:20,material:'W',source:'preview',
+  vac:Array.from({length:14},()=>[512+(Math.random()-.5)*16,512+(Math.random()-.5)*16,512+(Math.random()-.5)*16]),
+  sia:Array.from({length:16},()=>[512+(Math.random()-.5)*40,512+(Math.random()-.5)*40,512+(Math.random()-.5)*40])});
+setT(0);
+
+return {
+  show(){active=true;last=performance.now();resize();if(!started){started=true;requestAnimationFrame(loop);}doSync(false);},
+  pause(){active=false;},
+  sync(){doSync(true);}
+};
+})();
+
+</script>
+<script>
+showTab('dash');
+</script>
+</body>
+</html>
