@@ -254,10 +254,5 @@ High-fidelity training data generated with **LAMMPS** on the **Aurora** supercom
 
 ---
 
-<div align="center">
-
-### From "energy in" to a full 3D defect cloud — in the time it takes to blink.
-
-<sub>Accelerating multiscale radiation-damage modeling for fusion materials.</sub>
 
 </div>
