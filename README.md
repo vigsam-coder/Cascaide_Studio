@@ -37,7 +37,7 @@ Predicting that defect debris normally means an expensive **molecular-dynamics (
 
 **Predictive simulation of radiation damage in fusion materials** has to connect three scales: energetic PKA events, picosecond-scale defect production, and long-time microstructural evolution. MD gives a physically detailed picture of displacement cascades, but the cost of sampling cascade outcomes across many events makes it impractical to use directly inside multiscale workflows.
 
-**Cascaide** — a recently funded effort under the **American Science Cloud**, in collaboration with the **UK Atomic Energy Authority (UKAEA)** — tackles exactly this bottleneck. The goal is an **AI-accelerated workflow that produces statistically representative radiation-damage cascade end states**, replacing repeated expensive MD calculations with **fast, validated surrogate sampling** suitable for downstream defect-evolution models. This repository is the generative model and interactive studio at the heart of that workflow.
+**Cascaide** — a recently funded effort under the American Science Cloud, in collaboration with the UK Atomic Energy Authority (UKAEA) — tackles exactly this bottleneck. The goal is an **AI-accelerated workflow that produces statistically representative radiation-damage cascade end states**, replacing repeated expensive MD calculations with **fast, validated surrogate sampling** suitable for downstream defect-evolution models. This repository is the generative model and interactive studio at the heart of that workflow.
 
 ---
 
