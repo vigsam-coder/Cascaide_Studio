@@ -234,7 +234,7 @@ Cascaide_Studio/
 ├── cascade_studio.html     # The WebGL Studio (Dashboard + Simulation tabs)
 ├── best_model.pt           # Trained checkpoint (tungsten, 0–300 keV)
 ├── requirements.txt        # numpy · matplotlib · fastapi · uvicorn · torch
-└── cascade_demo.gif        # The animation above
+└── cascade_demo.gif        
 ```
 
 ---
